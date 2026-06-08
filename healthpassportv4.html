@@ -2637,6 +2637,7 @@ function fbToggleAdmin() {
     document.getElementById('fb-admin-btn').textContent = '관리자';
     document.getElementById('fb-admin-btn').style.background = 'rgba(46,31,10,.08)';
     document.getElementById('fb-admin-btn').style.color = '#5a4030';
+    fbRenderNotes();
     return;
   }
   var pw = prompt('관리자 비밀번호를 입력하세요:');
@@ -2645,9 +2646,46 @@ function fbToggleAdmin() {
     document.getElementById('fb-admin-btn').textContent = '관리자 모드 ON';
     document.getElementById('fb-admin-btn').style.background = '#c0392b';
     document.getElementById('fb-admin-btn').style.color = '#fff';
+    fbRenderNotes();
   } else if (pw !== null) {
     alert('비밀번호가 틀렸습니다.');
   }
+}
+
+var fbCurrentSnapshot = null;
+
+function fbRenderNotes() {
+  if (!fbCurrentSnapshot) return;
+  var list = document.getElementById('fb-list');
+  var empty = document.getElementById('fb-empty');
+  var countEl = document.getElementById('fb-count');
+  if (!list) return;
+  var cards = list.querySelectorAll('.fb-note-card');
+  cards.forEach(function(c){ c.remove(); });
+  var notes = [];
+  fbCurrentSnapshot.forEach(function(child) { notes.push({ key: child.key, val: child.val() }); });
+  notes.reverse();
+  if (notes.length === 0) {
+    if (empty) empty.style.display = 'block';
+    if (countEl) countEl.style.display = 'none';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  if (countEl) { countEl.style.display = 'block'; countEl.textContent = notes.length + '개의 응원이 도착해 있습니다 💛'; }
+  notes.forEach(function(item) {
+    var n = item.val; var key = item.key;
+    var card = document.createElement('div');
+    card.className = 'fb-note-card';
+    card.style.cssText = 'background:#fff;border:1px solid rgba(201,168,76,.25);border-radius:12px;padding:14px 16px;box-shadow:0 2px 8px rgba(46,31,10,.06);position:relative;';
+    var delBtn = fbAdminMode ? '<button onclick="fbDeleteNote(\'' + key + '\')" style="position:absolute;top:10px;right:10px;background:#c0392b;color:#fff;border:none;border-radius:5px;font-size:10px;padding:3px 8px;cursor:pointer;">삭제</button>' : '';
+    card.innerHTML = delBtn +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding-right:' + (fbAdminMode ? '48px' : '0') + ';">' +
+        '<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#b8860b;">' + escNote(n.name) + '</div>' +
+        '<div style="font-size:9.5px;color:#c0b090;">' + escNote(n.date) + '</div>' +
+      '</div>' +
+      '<div style="font-size:13.5px;color:#2e1f0a;line-height:1.8;font-family:\'Noto Serif KR\',serif;">' + escNote(n.msg) + '</div>';
+    list.appendChild(card);
+  });
 }
 
 function fbDeleteNote(key) {
@@ -2658,47 +2696,8 @@ function fbDeleteNote(key) {
 }
 
 notesRef.orderByChild('ts').on('value', function(snapshot) {
-  var list = document.getElementById('fb-list');
-  var empty = document.getElementById('fb-empty');
-  var countEl = document.getElementById('fb-count');
-  if (!list) return;
-
-  var cards = list.querySelectorAll('.fb-note-card');
-  cards.forEach(function(c){ c.remove(); });
-
-  var notes = [];
-  snapshot.forEach(function(child) { notes.push({ key: child.key, val: child.val() }); });
-  notes.reverse();
-
-  if (notes.length === 0) {
-    if (empty) empty.style.display = 'block';
-    if (countEl) countEl.style.display = 'none';
-    return;
-  }
-  if (empty) empty.style.display = 'none';
-  if (countEl) {
-    countEl.style.display = 'block';
-    countEl.textContent = notes.length + '개의 응원이 도착해 있습니다 💛';
-  }
-
-  notes.forEach(function(item) {
-    var n = item.val;
-    var key = item.key;
-    var card = document.createElement('div');
-    card.className = 'fb-note-card';
-    card.style.cssText = 'background:#fff;border:1px solid rgba(201,168,76,.25);border-radius:12px;padding:14px 16px;box-shadow:0 2px 8px rgba(46,31,10,.06);position:relative;';
-    var delBtn = fbAdminMode
-      ? '<button onclick="fbDeleteNote(\'' + key + '\')" style="position:absolute;top:10px;right:10px;background:#c0392b;color:#fff;border:none;border-radius:5px;font-size:10px;padding:3px 8px;cursor:pointer;">삭제</button>'
-      : '';
-    card.innerHTML =
-      delBtn +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;padding-right:' + (fbAdminMode ? '48px' : '0') + ';">' +
-        '<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#b8860b;">' + escNote(n.name) + '</div>' +
-        '<div style="font-size:9.5px;color:#c0b090;">' + escNote(n.date) + '</div>' +
-      '</div>' +
-      '<div style="font-size:13.5px;color:#2e1f0a;line-height:1.8;font-family:\'Noto Serif KR\',serif;">' + escNote(n.msg) + '</div>';
-    list.appendChild(card);
-  });
+  fbCurrentSnapshot = snapshot;
+  fbRenderNotes();
 });
 
 function fbSubmitNote() {
